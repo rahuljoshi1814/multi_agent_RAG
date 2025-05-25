@@ -157,16 +157,6 @@ If the schema agent cannot find matching tables, the system falls back to **sema
 - What department had the lowest sales?
 - List top 5 products by revenue.
 
-###  Vector Fallback Queries
-
-- Who spent the most in Q1?
-- Which category dropped in Q4 2023?
-- Who is the top customer in electronics?
-- What was the biggest expense in 2022?
-- Tell me about Q1 sales behavior.
-
----
-
 ##  Error Handling
 
 - Schema not found → fallback triggered

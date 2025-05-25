@@ -6,4 +6,5 @@ services:
     startCommand: "./start.sh"
     envVars:
       - key: DATABASE_URL
-        value: postgres://your_user:your_pass@your_host:5432/your_db
+        value: postgres://postgres:CtAxQBmMcWbEFaoyDadeEJyJthhLkUMD@gondola.proxy.rlwy.net:22503/railway
+

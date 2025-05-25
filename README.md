@@ -35,11 +35,50 @@ PostgreSQL schema includes 5 interrelated tables:
 
 ---
 
-## 📦 Setup Instructions
+##  Setup Instructions
 
 ### 1. Clone the repository
 ```bash
 git clone https://github.com/yourusername/multi-agent-rag.git
 cd multi-agent-rag
+
+### 2. Create the PostgreSQL database
+Run the schema file: 
+-- In pgAdmin or psql
+- \i init_db.sql
+
+### 3. Populate with fake data
+- pip install -r requirements.txt
+- python populate_mock_data.py
+
+### 4. Start the FastAPI server
+uvicorn app.main:app --reload
+
+### 5. Visit the web interface
+Go to: http://localhost:8000
+
+### 6. API Endpoint
+POST /ask
+Input: {
+  "question": "Who spent the most last year?"
+}
+
+Output: {
+  "answer": "Answer: Alice Smith, 15000.50",
+  "intermediate_steps": {
+    "schema": ["customers", "sales"],
+    "sql_query": "...",
+    "result": {
+      "columns": ["name", "total"],
+      "rows": [["Alice Smith", 15000.50]]
+    }
+  }
+}
+
+## Error Handling
+- Unknown schema → Schema agent returns empty
+- Invalid SQL → Catch and display message
+- No results → “No data found.”
+
 
 

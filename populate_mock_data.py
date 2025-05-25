@@ -1,42 +1,53 @@
-from app.db import get_connection
-from faker import Faker
-import random
+import chromadb
+from chromadb.config import Settings
 
-fake = Faker()
+# Globals for lazy loading
+model = None
+collection = None
 
-conn = get_connection()
-cur = conn.cursor()
+def init_vector_db():
+    global model, collection
+    if model is None or collection is None:
+        from sentence_transformers import SentenceTransformer
 
-# Store real IDs after insert
-customer_ids = []
-product_ids = []
-employee_ids = []
+        # Use lightweight model to reduce memory usage
+        model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
 
-# Insert Customers
-for _ in range(200):
-    cur.execute("INSERT INTO customers (name, email, created_at) VALUES (%s, %s, %s) RETURNING id",
-                (fake.name(), fake.email(), fake.date_between(start_date='-3y', end_date='today')))
-    customer_ids.append(cur.fetchone()[0])
+        # Initialize ChromaDB client
+        client = chromadb.Client(Settings(anonymized_telemetry=False))
 
-# Insert Products
-for _ in range(20):
-    cur.execute("INSERT INTO products (name, category, price) VALUES (%s, %s, %s) RETURNING id",
-                (fake.word().capitalize(), random.choice(["Electronics", "Books", "Clothing"]), round(random.uniform(10, 500), 2)))
-    product_ids.append(cur.fetchone()[0])
+        # Avoid creating the collection again if it already exists
+        try:
+            collection = client.get_collection("rag_fallback")
+        except:
+            collection = client.create_collection(name="rag_fallback")
 
-# Insert Employees
-for _ in range(50):
-    cur.execute("INSERT INTO employees (name, role, department, hire_date) VALUES (%s, %s, %s, %s) RETURNING id",
-                (fake.name(), random.choice(["Sales Rep", "Manager"]), random.choice(["Sales", "HR", "IT"]), fake.date_between(start_date='-5y', end_date='today')))
-    employee_ids.append(cur.fetchone()[0])
+        # Fallback document list
+        documents = [
+            "Alice Smith spent the most in Q1 2023, totaling $15,000.",
+            "Bob Johnson is our top customer in electronics category.",
+            "In 2022, total sales were $275,000 across all departments.",
+            "Top spender in the first quarter was Alice.",
+            "Managers are responsible for approving large purchases.",
+            "Quarter 4 of 2023 saw a drop in clothing sales."
+        ]
 
-# Insert Sales using actual IDs
-for _ in range(500):
-    cur.execute("INSERT INTO sales (customer_id, product_id, employee_id, amount, sale_date) VALUES (%s, %s, %s, %s, %s)",
-                (random.choice(customer_ids), random.choice(product_ids), random.choice(employee_ids),
-                 round(random.uniform(50, 1000), 2), fake.date_between(start_date='-2y', end_date='today')))
+        # Make sure all documents are non-empty
+        clean_docs = [doc for doc in documents if doc.strip() != ""]
 
-conn.commit()
-cur.close()
-conn.close()
-print("Mock data inserted successfully!")
+        # Add documents safely
+        collection.add(
+            documents=clean_docs,
+            ids=[f"doc{i}" for i in range(len(clean_docs))],
+            embeddings=model.encode(clean_docs).tolist()
+        )
+
+def fallback_answer(question: str) -> str:
+    init_vector_db()
+    query_vector = model.encode([question]).tolist()[0]
+    results = collection.query(query_embeddings=[query_vector], n_results=1)
+
+    if results["documents"] and results["documents"][0]:
+        return results["documents"][0][0]  # Return top match
+
+    return "I'm sorry, I couldn’t find any relevant info."

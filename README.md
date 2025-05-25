@@ -150,7 +150,7 @@ If the schema agent cannot find matching tables, the system falls back to **sema
 ##  Sample Queries
 
 ###  SQL-Based Queries
-
+ use them like sample format given above
 - What is the total sales?
 - What was the total sales last year?
 - Who are the top customers last year?

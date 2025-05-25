@@ -4,7 +4,7 @@ from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 
 # Use Sentence Transformer for vector embedding
-model = SentenceTransformer("all-MiniLM-L6-v2")
+model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
 
 # Setup ChromaDB client (local, in-memory)
 client = chromadb.Client(Settings(anonymized_telemetry=False))

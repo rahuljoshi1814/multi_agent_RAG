@@ -1,82 +1,115 @@
 #  Multi-Agent RAG System for Natural Language Querying of a Relational Database
 
-###  Objective
-This project implements a **Multi-Agent Retrieval-Augmented Generation (RAG)** system that allows users to ask **natural language questions**, translates them to **PostgreSQL SQL queries**, and returns human-readable answers via a web interface and API.
+##  Objective
+
+This project implements a **Multi-Agent Retrieval-Augmented Generation (RAG)** system that allows users to ask **natural language questions**, which are interpreted, translated into **SQL queries**, executed on a **PostgreSQL database**, and returned as **human-readable answers**.
+
+##  Features
+
+-  Natural language question answering over structured relational data
+-  Multi-Agent architecture:
+  - **Schema Agent** – Detects relevant tables
+  - **SQL Generator Agent** – Builds SQL queries from questions
+  - **Retriever Agent** – Executes SQL and fetches data
+  - **Synthesizer Agent** – Converts raw results into readable answers
+  - **Vector Fallback Agent** – Uses semantic search if SQL fails
+-  Supports filtering, aggregation, joins, and temporal queries
+-  FastAPI backend with web UI and `/docs` interface
+-  Hybrid RAG: Structured (SQL) + Unstructured (Vector) handling
+-  Secure `.env` and production-ready deployment with `render.yaml`
+-  Hosted on Render with PostgreSQL from Railway
 
 ---
 
-##  Features
-- Natural language question answering over a structured PostgreSQL database
-- Modular multi-agent pipeline:
-  - **Schema Agent** → Identifies relevant tables
-  - **SQL Generator Agent** → Generates SQL based on patterns
-  - **Retriever Agent** → Executes SQL and fetches results
-  - **Synthesizer Agent** → Converts rows into a readable answer
-  - **Vector Fallback Agent** → Uses semantic search if SQL path fails
-- Web interface + FastAPI docs
-- Hybrid RAG: combines SQL and Vector Retrieval
-- Secure `.env` usage and render-ready `render.yaml`
-- Deployed on Render with PostgreSQL on Railway
-
 ##  System Architecture
 
-User Question
-↓
-+--------------------+
-| Web/API Layer |
-+--------------------+
-↓
-Schema Agent → SQL Generator → Retriever → Synthesizer → Answer
-↓
-[if failed]
-↓
-Vector Retriever → Synthesizer → Answer
+```text
+User → Web/API → Schema Agent → SQL Agent → Retriever → Synthesizer → Answer
+                                            ↓
+                                  (if SQL fails)
+                                            ↓
+                              Vector Agent → Synthesizer → Answer
+```
 
+---
 
-## 🗃️ Database Schema
+##  Database Schema
 
 PostgreSQL schema includes 5 interrelated tables:
+
 - `customers(id, name, email, created_at)`
 - `products(id, name, category, price)`
 - `employees(id, name, role, department, hire_date)`
 - `projects(id, name, description, start_date, end_date)`
 - `sales(id, customer_id, product_id, employee_id, amount, sale_date)`
 
+---
+
 ##  Setup Instructions
 
-### 1. Clone the repository
+### 1. Clone the Repository
+
 ```bash
-git clone https://github.com/yourusername/multi-agent-rag.git
-cd multi-agent-rag
+git clone https://github.com/rahuljoshi1814/multi_agent_RAG.git
+cd multi_agent_RAG
+```
 
-### 2. Create the PostgreSQL database
-Run the schema file: 
-- Create a new DB (e.g., in pgAdmin or Railway)
-- Run init_db.sql to create tables
+### 2. Install Dependencies
 
+```bash
+pip install -r requirements.txt
+```
 
-### 3. Install dependencies
-- pip install -r requirements.txt
+### 3. Configure PostgreSQL
 
-### 4. Create .env file
-- DATABASE_URL=postgres://your_user:your_pass@your_host:5432/your_db
+- Create a PostgreSQL DB (e.g., using Railway or pgAdmin)
+- Run `init_db.sql` to initialize schema
 
-### 5. Populate with fake data
-- python populate_mock_data.py
+### 4. Add `.env` File
 
-### 6. Start the FastAPI server
+Create a `.env` file in the root with:
+
+```env
+DATABASE_URL=postgres://your_user:your_pass@your_host:5432/your_db
+```
+
+### 5. Populate Database
+
+```bash
+python populate_mock_data.py
+```
+
+### 6. Run the App Locally
+
+```bash
 uvicorn app.main:app --reload
+```
 
-### 7. Visit the web interface
-Go to: http://localhost:8000
+Visit: [http://localhost:8000](http://localhost:8000)  
+Swagger Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### 8. API Endpoint
+---
+
+##  API Usage
+
+### Endpoint
+
+```http
 POST /ask
-Input: {
+```
+
+### Sample Request
+
+```json
+{
   "question": "Who spent the most last year?"
 }
+```
 
-Output: {
+### Sample Response
+
+```json
+{
   "answer": "Answer: Alice Smith, 15000.50",
   "intermediate_steps": {
     "schema": ["customers", "sales"],
@@ -87,33 +120,81 @@ Output: {
     }
   }
 }
+```
 
-## Vector Fallback Mode
+---
 
-Example:
+##  Vector Fallback Mode (ChromaDB)
+
+If the schema agent cannot find matching tables, the system falls back to **semantic similarity** using `SentenceTransformer` and `ChromaDB`.
+
+### Example
+
+```json
 {
   "question": "Who spent the most in Q1?"
 }
+```
 
-Returns from fallback document:
-"Alice Smith spent the most in Q1 2023, totaling $15,000."
+### Response (Fallback)
 
+```json
+{
+  "answer": "Alice Smith spent the most in Q1 2023, totaling $15,000.",
+  "fallback": true
+}
+```
 
-When the system can't determine relevant schema, it falls back to ChromaDB vector search using sentence-transformer embeddings
+---
 
-## Error Handling
-- Unknown schema → Schema agent returns empty
-- Invalid SQL → Catch and display message
-- No results → “No data found.”
+##  Sample Queries
 
-## Environment Variables Required
+###  SQL-Based Queries
 
-Set in .env (locally) or render.yaml (for Render deployment)::
+- What is the total sales?
+- What was the total sales last year?
+- Who are the top customers last year?
+- What department had the lowest sales?
+- List top 5 products by revenue.
+
+###  Vector Fallback Queries
+
+- Who spent the most in Q1?
+- Which category dropped in Q4 2023?
+- Who is the top customer in electronics?
+- What was the biggest expense in 2022?
+- Tell me about Q1 sales behavior.
+
+---
+
+##  Error Handling
+
+- Schema not found → fallback triggered
+- Invalid SQL → graceful failure message
+- No records found → “No data found.”
+
+---
+
+##  Environment Variables
+
+Set these in `.env` (locally) or in Render environment settings:
 
 ```env
 DATABASE_URL=postgres://your_user:your_pass@your_host:5432/your_db
- 
- ## Live Demo
- - https://multi-agent-rag.onrender.com 
- Test the /ask endpoint or try your questions in the web interface.
+```
 
+---
+
+##  Live Demo
+
+You can test the live version here:
+
+ **[https://multi-agent-rag.onrender.com](https://multi-agent-rag.onrender.com)**  
+ API Docs: [https://multi-agent-rag.onrender.com/docs](https://multi-agent-rag.onrender.com/docs)
+
+---
+
+##  Author
+
+**Rahul Joshi**  
+GitHub: [@rahuljoshi1814](https://github.com/rahuljoshi1814)
